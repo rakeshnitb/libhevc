@@ -430,6 +430,71 @@ void ihevcd_fmt_conv_420sp_to_420sp(UWORD8 *pu1_y_src,
 }
 
 
+/**
+*******************************************************************************
+*
+* @brief Function used from copying a 400 buffer
+*
+* @par   Description
+* Function used from copying a 400 buffer
+*
+* @param[in] pu1_y_src
+*   Input Y pointer
+*
+* @param[in] pu1_y_dst
+*   Output Y pointer
+*
+* @param[in] wd
+*   Width
+*
+* @param[in] ht
+*   Height
+*
+* @param[in] src_y_strd
+*   Input Y Stride
+*
+* @param[in] dst_y_strd
+*   Output Y stride
+*
+* @returns None
+*
+* @remarks In case there is a need to perform partial frame copy then
+* by passion appropriate source and destination pointers and appropriate
+* values for wd and ht it can be done
+*
+*******************************************************************************
+*/
+
+void ihevcd_fmt_conv_400_to_400(UWORD8 *pu1_y_src,
+                                    UWORD8 *pu1_y_dst,
+                                    WORD32 wd,
+                                    WORD32 ht,
+                                    WORD32 src_y_strd,
+                                    WORD32 dst_y_strd)
+{
+    UWORD8 *pu1_src, *pu1_dst;
+    WORD32 num_rows, num_cols, src_strd, dst_strd;
+    WORD32 i;
+
+    /* copy luma */
+    pu1_src = (UWORD8 *)pu1_y_src;
+    pu1_dst = (UWORD8 *)pu1_y_dst;
+
+    num_rows = ht;
+    num_cols = wd;
+
+    src_strd = src_y_strd;
+    dst_strd = dst_y_strd;
+
+    for(i = 0; i < num_rows; i++)
+    {
+        memcpy(pu1_dst, pu1_src, num_cols);
+        pu1_dst += dst_strd;
+        pu1_src += src_strd;
+    }
+    return;
+}
+
 
 /**
 *******************************************************************************
@@ -699,14 +764,14 @@ IHEVCD_ERROR_T ihevcd_fmt_conv(codec_t *ps_codec,
 {
     IHEVCD_ERROR_T ret = (IHEVCD_ERROR_T)IHEVCD_SUCCESS;
     pic_buf_t *ps_disp_pic;
-    UWORD8 *pu1_y_src, *pu1_uv_src;
-    UWORD8 *pu1_y_dst_tmp, *pu1_uv_dst_tmp;
-    UWORD8 *pu1_u_dst_tmp, *pu1_v_dst_tmp;
-    UWORD16 *pu2_rgb_dst_tmp;
-    UWORD32 *pu4_rgb_dst_tmp;
+    UWORD8 *pu1_y_src = NULL, *pu1_uv_src = NULL;
+    UWORD8 *pu1_y_dst_tmp = NULL, *pu1_uv_dst_tmp = NULL;
+    UWORD8 *pu1_u_dst_tmp = NULL, *pu1_v_dst_tmp = NULL;
+    UWORD16 *pu2_rgb_dst_tmp = NULL;
+    UWORD32 *pu4_rgb_dst_tmp = NULL;
     WORD32 is_u_first;
-    UWORD8 *pu1_luma;
-    UWORD8 *pu1_chroma;
+    UWORD8 *pu1_luma = NULL;
+    UWORD8 *pu1_chroma = NULL;
     sps_t *ps_sps;
     WORD32 disable_luma_copy;
     WORD32 crop_unit_x, crop_unit_y;
@@ -729,16 +794,20 @@ IHEVCD_ERROR_T ihevcd_fmt_conv(codec_t *ps_codec,
 
     ps_disp_pic = ps_codec->ps_disp_buf;
     pu1_luma = ps_disp_pic->pu1_luma;
-    pu1_chroma = ps_disp_pic->pu1_chroma;
+    if(CHROMA_FMT_IDC_MONOCHROME != ps_sps->i1_chroma_format_idc)
+    {
+        pu1_chroma = ps_disp_pic->pu1_chroma;
+    }
 
 
     /* Take care of cropping */
     pu1_luma    += ps_codec->i4_strd * ps_sps->i2_pic_crop_top_offset * crop_unit_y + ps_sps->i2_pic_crop_left_offset * crop_unit_x;
 
     /* Left offset is multiplied by 2 because buffer is UV interleaved */
-    pu1_chroma  += ps_codec->i4_strd * ps_sps->i2_pic_crop_top_offset + ps_sps->i2_pic_crop_left_offset * 2;
-
-
+    if(CHROMA_FMT_IDC_MONOCHROME != ps_sps->i1_chroma_format_idc)
+    {
+        pu1_chroma  += ps_codec->i4_strd * ps_sps->i2_pic_crop_top_offset + ps_sps->i2_pic_crop_left_offset * 2;
+    }
     is_u_first = (IV_YUV_420SP_UV == ps_codec->e_ref_chroma_fmt) ? 1 : 0;
 
     /* In case of 420P output luma copy is disabled for shared mode */
@@ -752,7 +821,10 @@ IHEVCD_ERROR_T ihevcd_fmt_conv(codec_t *ps_codec,
 
     {
         pu1_y_src   = pu1_luma + cur_row * ps_codec->i4_strd;
-        pu1_uv_src  = pu1_chroma + (cur_row / 2) * ps_codec->i4_strd;
+        if(CHROMA_FMT_IDC_MONOCHROME != ps_sps->i1_chroma_format_idc)
+        {
+            pu1_uv_src  = pu1_chroma + (cur_row / 2) * ps_codec->i4_strd;
+        }
 
         /* In case of shared mode, with 420P output, get chroma destination */
         if((1 == ps_codec->i4_share_disp_buf) && (IV_YUV_420P == ps_codec->e_chroma_fmt))
@@ -777,9 +849,12 @@ IHEVCD_ERROR_T ihevcd_fmt_conv(codec_t *ps_codec,
         pu4_rgb_dst_tmp  = (UWORD32 *)pu1_y_dst;
         pu4_rgb_dst_tmp  += cur_row * ps_codec->i4_disp_strd;
         pu1_y_dst_tmp  = pu1_y_dst  + cur_row * ps_codec->i4_disp_strd;
-        pu1_uv_dst_tmp = pu1_u_dst  + (cur_row / 2) * ps_codec->i4_disp_strd;
-        pu1_u_dst_tmp = pu1_u_dst  + (cur_row / 2) * ps_codec->i4_disp_strd / 2;
-        pu1_v_dst_tmp = pu1_v_dst  + (cur_row / 2) * ps_codec->i4_disp_strd / 2;
+        if(CHROMA_FMT_IDC_MONOCHROME != ps_sps->i1_chroma_format_idc)
+        {
+            pu1_uv_dst_tmp = pu1_u_dst  + (cur_row / 2) * ps_codec->i4_disp_strd;
+            pu1_u_dst_tmp = pu1_u_dst  + (cur_row / 2) * ps_codec->i4_disp_strd / 2;
+            pu1_v_dst_tmp = pu1_v_dst  + (cur_row / 2) * ps_codec->i4_disp_strd / 2;
+        }
 
         /* In case of multi threaded implementation, format conversion might be called
          * before reconstruction is completed. If the frame being converted/copied
@@ -848,6 +923,15 @@ IHEVCD_ERROR_T ihevcd_fmt_conv(codec_t *ps_codec,
                           ps_codec->i4_strd,
                           ps_codec->i4_strd,
                           ps_codec->i4_disp_strd,
+                          ps_codec->i4_disp_strd);
+        }
+        else if(IV_GRAY == ps_codec->e_chroma_fmt)
+        {
+            ihevcd_fmt_conv_400_to_400(pu1_y_src,
+                          pu1_y_dst_tmp,
+                          ps_codec->i4_disp_wd,
+                          num_rows,
+                          ps_codec->i4_strd,
                           ps_codec->i4_disp_strd);
         }
         else if(IV_YUV_420P == ps_codec->e_chroma_fmt)

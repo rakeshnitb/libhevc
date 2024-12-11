@@ -1508,7 +1508,7 @@ IHEVCD_ERROR_T ihevcd_parse_sps(codec_t *ps_codec)
     }
     ps_sps->i1_chroma_format_idc = value;
 
-    if(ps_sps->i1_chroma_format_idc != CHROMA_FMT_IDC_YUV420)
+    if(ps_sps->i1_chroma_format_idc != CHROMA_FMT_IDC_YUV420 && ps_sps->i1_chroma_format_idc != CHROMA_FMT_IDC_MONOCHROME)
     {
         ps_codec->s_parse.i4_error_code = IHEVCD_UNSUPPORTED_CHROMA_FMT_IDC;
         return (IHEVCD_ERROR_T)IHEVCD_UNSUPPORTED_CHROMA_FMT_IDC;

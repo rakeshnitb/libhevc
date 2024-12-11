@@ -569,8 +569,10 @@ IHEVCD_ERROR_T ihevcd_parse_slice_header(codec_t *ps_codec,
             BITS_PARSE("slice_sao_luma_flag", value, ps_bitstrm, 1);
             ps_slice_hdr->i1_slice_sao_luma_flag = value;
 
-            BITS_PARSE("slice_sao_chroma_flag", value, ps_bitstrm, 1);
-            ps_slice_hdr->i1_slice_sao_chroma_flag = value;
+            if (ps_sps->i1_chroma_format_idc != CHROMA_FMT_IDC_MONOCHROME) {
+                BITS_PARSE("slice_sao_chroma_flag", value, ps_bitstrm, 1);
+                ps_slice_hdr->i1_slice_sao_chroma_flag = value;
+            }
 
         }
 

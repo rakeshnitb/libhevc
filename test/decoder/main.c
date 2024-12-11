@@ -1060,6 +1060,16 @@ void dump_output(vid_dec_ctx_t *ps_app_ctx,
         }
 #endif
     }
+    else if(ps_app_ctx->e_output_chroma_format == IV_GRAY)
+    {
+        UWORD8 *buf;
+        buf = (UWORD8 *)s_dump_disp_frm_buf.pv_y_buf;
+        for(i = 0; i < s_dump_disp_frm_buf.u4_y_ht; i++)
+        {
+            fwrite(buf, 1, s_dump_disp_frm_buf.u4_y_wd, ps_op_file);
+            buf += s_dump_disp_frm_buf.u4_y_strd;
+        }
+    }
     else if(ps_app_ctx->e_output_chroma_format == IV_RGBA_8888)
     {
         UWORD8 *buf;
@@ -1248,6 +1258,8 @@ void parse_argument(vid_dec_ctx_t *ps_app_ctx, CHAR *argument, CHAR *value)
                 ps_app_ctx->e_output_chroma_format = IV_YUV_420SP_UV;
             else if((strcmp(value, "YUV_420SP_VU")) == 0)
                 ps_app_ctx->e_output_chroma_format = IV_YUV_420SP_VU;
+            else if((strcmp(value, "GRAY")) == 0)
+                ps_app_ctx->e_output_chroma_format = IV_GRAY;
             else
             {
                 printf("\nInvalid colour format setting it to IV_YUV_420P\n");
@@ -2416,6 +2428,13 @@ int main(WORD32 argc, CHAR *argv[])
                 {
                     s_ctl_op.u4_min_out_buf_size[0] = ADAPTIVE_MAX_WD * ADAPTIVE_MAX_HT;
                     s_ctl_op.u4_min_out_buf_size[1] = ADAPTIVE_MAX_WD * ADAPTIVE_MAX_HT >> 1;
+                    s_ctl_op.u4_min_out_buf_size[2] = 0;
+                    break;
+                }
+                case IV_GRAY:
+                {
+                    s_ctl_op.u4_min_out_buf_size[0] = ADAPTIVE_MAX_WD * ADAPTIVE_MAX_HT;
+                    s_ctl_op.u4_min_out_buf_size[1] = 0;
                     s_ctl_op.u4_min_out_buf_size[2] = 0;
                     break;
                 }

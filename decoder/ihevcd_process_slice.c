@@ -1221,7 +1221,10 @@ IHEVCD_ERROR_T ihevcd_process(process_ctxt_t *ps_proc)
                         pad_ht_chroma = ctb_size / 2;
                         /* Pad left after 1st CTB is processed */
                         ps_codec->s_func_selector.ihevc_pad_left_luma_fptr(ps_proc->pu1_cur_ctb_luma - 8 * ps_codec->i4_strd, ps_codec->i4_strd, pad_ht_luma, PAD_LEFT);
-                        ps_codec->s_func_selector.ihevc_pad_left_chroma_fptr(ps_proc->pu1_cur_ctb_chroma - 16 * ps_codec->i4_strd, ps_codec->i4_strd, pad_ht_chroma, PAD_LEFT);
+                        if (ps_sps->i1_chroma_format_idc != CHROMA_FMT_IDC_MONOCHROME)
+                        {
+                            ps_codec->s_func_selector.ihevc_pad_left_chroma_fptr(ps_proc->pu1_cur_ctb_chroma - 16 * ps_codec->i4_strd, ps_codec->i4_strd, pad_ht_chroma, PAD_LEFT);
+                        }
                     }
 
                     if((ps_sps->i2_pic_wd_in_ctb - 1) == ps_proc->i4_ctb_x)
@@ -1240,7 +1243,7 @@ IHEVCD_ERROR_T ihevcd_process(process_ctxt_t *ps_proc)
 
                         pad_ht_luma = ctb_size;
                         pad_ht_chroma = ctb_size / 2;
-                        if((ps_sps->i2_pic_ht_in_ctb - 1) == ps_proc->i4_ctb_y)
+                        if (ps_sps->i1_chroma_format_idc != CHROMA_FMT_IDC_MONOCHROME && ((ps_sps->i2_pic_ht_in_ctb - 1) == ps_proc->i4_ctb_y))
                         {
                             pad_ht_luma += 8;
                             pad_ht_chroma += 16;
@@ -1249,7 +1252,10 @@ IHEVCD_ERROR_T ihevcd_process(process_ctxt_t *ps_proc)
                         }
                         /* Pad right after last CTB in the current row is processed */
                         ps_codec->s_func_selector.ihevc_pad_right_luma_fptr(ps_proc->pu1_cur_ctb_luma + cols_remaining - 8 * ps_codec->i4_strd, ps_codec->i4_strd, pad_ht_luma, PAD_RIGHT);
-                        ps_codec->s_func_selector.ihevc_pad_right_chroma_fptr(ps_proc->pu1_cur_ctb_chroma + cols_remaining - 16 * ps_codec->i4_strd, ps_codec->i4_strd, pad_ht_chroma, PAD_RIGHT);
+                        if(ps_sps->i1_chroma_format_idc != CHROMA_FMT_IDC_MONOCHROME)
+                        {
+                            ps_codec->s_func_selector.ihevc_pad_right_chroma_fptr(ps_proc->pu1_cur_ctb_chroma + cols_remaining - 16 * ps_codec->i4_strd, ps_codec->i4_strd, pad_ht_chroma, PAD_RIGHT);
+                        }
 
                         if((ps_sps->i2_pic_ht_in_ctb - 1) == ps_proc->i4_ctb_y)
                         {
