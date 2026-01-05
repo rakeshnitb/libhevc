@@ -34,7 +34,8 @@
 #ifndef _IHEVCD_TRACE_H_
 #define _IHEVCD_TRACE_H_
 
-#define FULLRANGE 1
+// re-enable this once 444 development is done
+#define FULLRANGE 0
 
 
 #define RANGE_NUMBITS 31

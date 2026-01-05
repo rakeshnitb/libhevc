@@ -1517,6 +1517,13 @@ IHEVCD_ERROR_T ihevcd_parse_sps(codec_t *ps_codec)
             break;
         case CHROMA_FMT_IDC_YUV420:
             break;
+        case CHROMA_FMT_IDC_YUV444: {
+                if (!(ps_codec->u4_enable_yuv_formats & (1 << CHROMA_FMT_IDC_YUV444))) {
+                    ps_codec->s_parse.i4_error_code = IHEVCD_UNSUPPORTED_CHROMA_FMT_IDC;
+                    return (IHEVCD_ERROR_T)IHEVCD_UNSUPPORTED_CHROMA_FMT_IDC;
+                }
+            }
+            break;
         default: {
                 ps_codec->s_parse.i4_error_code = IHEVCD_UNSUPPORTED_CHROMA_FMT_IDC;
                 return (IHEVCD_ERROR_T)IHEVCD_UNSUPPORTED_CHROMA_FMT_IDC;
@@ -1525,7 +1532,7 @@ IHEVCD_ERROR_T ihevcd_parse_sps(codec_t *ps_codec)
     }
     ps_sps->i1_chroma_format_idc = value;
 
-    if(CHROMA_FMT_IDC_YUV444_PLANES == ps_sps->i1_chroma_format_idc)
+    if(CHROMA_FMT_IDC_YUV444 == ps_sps->i1_chroma_format_idc)
     {
         BITS_PARSE("separate_colour_plane_flag", value, ps_bitstrm, 1);
         ps_sps->i1_separate_colour_plane_flag = value;
@@ -1872,7 +1879,71 @@ IHEVCD_ERROR_T ihevcd_parse_sps(codec_t *ps_codec)
         }
     }
 
-    BITS_PARSE("sps_extension_flag", value, ps_bitstrm, 1);
+    BITS_PARSE("sps_extension_present_flag", value, ps_bitstrm, 1);
+    ps_sps->i1_sps_extension_present_flag = value;
+
+    if(ps_sps->i1_sps_extension_present_flag)
+    {
+        BITS_PARSE("sps_range_extension_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_sps_range_extension_flag = value;
+
+        BITS_PARSE("sps_multilayer_extension_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_sps_multilayer_extension_flag = value;
+
+        BITS_PARSE("sps_3d_extension_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_sps_3d_extension_flag = value;
+
+        BITS_PARSE("sps_scc_extension_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_sps_scc_extension_flag = value;
+
+        BITS_PARSE("sps_extension_4bits", value, ps_bitstrm, 4);
+        ps_sps->i1_sps_extension_4bits = value;
+    }
+
+#ifdef ENABLE_MAIN_REXT_PROFILE
+    if(ps_sps->i1_sps_range_extension_flag)
+    {
+        BITS_PARSE("transform_skip_rotation_enabled_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_transform_skip_rotation_enabled_flag = value;
+
+        BITS_PARSE("transform_skip_context_enabled_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_transform_skip_context_enabled_flag = value;
+
+        BITS_PARSE("implicit_rdpcm_enabled_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_implicit_rdpcm_enabled_flag = value;
+
+        BITS_PARSE("explicit_rdpcm_enabled_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_explicit_rdpcm_enabled_flag = value;
+
+        BITS_PARSE("extended_precision_processing_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_extended_precision_processing_flag = value;
+
+        BITS_PARSE("intra_smoothing_disabled_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_intra_smoothing_disabled_flag = value;
+
+        BITS_PARSE("high_precision_offsets_enabled_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_use_high_precision_pred_wt = value;
+
+        BITS_PARSE("persistent_rice_adaptation_enabled_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_fast_rice_adaptation_enabled_flag = value;
+
+        BITS_PARSE("cabac_bypass_alignment_enabled_flag", value, ps_bitstrm, 1);
+        ps_sps->i1_align_cabac_before_bypass = value;
+    }
+    if(ps_sps->i1_sps_multilayer_extension_flag || ps_sps->i1_sps_3d_extension_flag
+                    || ps_sps->i1_sps_scc_extension_flag)
+    {
+        // TODO: add support for parsing these syntax elements
+        return IHEVCD_INVALID_PARAMETER;
+    }
+#else
+    if(ps_sps->i1_sps_range_extension_flag || ps_sps->i1_sps_multilayer_extension_flag
+                    || ps_sps->i1_sps_3d_extension_flag || ps_sps->i1_sps_scc_extension_flag)
+    {
+        // TODO: add support for parsing these syntax elements
+        return IHEVCD_INVALID_PARAMETER;
+    }
+#endif
 
     if((UWORD8 *)ps_bitstrm->pu4_buf > ps_bitstrm->pu1_buf_max)
     {
@@ -2442,8 +2513,9 @@ IHEVCD_ERROR_T ihevcd_parse_pps(codec_t *ps_codec)
 
     BITS_PARSE("slice_header_extension_present_flag", value, ps_bitstrm, 1);
     ps_pps->i1_slice_header_extension_present_flag = value;
-    /* Not present in HM */
+
     BITS_PARSE("pps_extension_flag", value, ps_bitstrm, 1);
+    // TODO: Handle syntax params if pps_extension_flag is present
 
     if((UWORD8 *)ps_bitstrm->pu4_buf > ps_bitstrm->pu1_buf_max)
         return IHEVCD_INVALID_PARAMETER;

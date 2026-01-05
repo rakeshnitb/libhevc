@@ -48,9 +48,10 @@
  * are called as functions. Set these to 0 to debug cabac leaf level functions
  * Note these macros assume FULLRANGE is 1.
  */
-#define CABAC_DECODE_BIN            1
-#define CABAC_DECODE_BYPASS_BIN     1
-#define CABAC_DECODE_BYPASS_BINS    1
+// re-enable this once 444 development is done
+#define CABAC_DECODE_BIN            0
+#define CABAC_DECODE_BYPASS_BIN     0
+#define CABAC_DECODE_BYPASS_BINS    0
 
 /*****************************************************************************/
 /* Function Macros                                                           */

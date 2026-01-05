@@ -1077,6 +1077,28 @@ void dump_output(vid_dec_ctx_t *ps_app_ctx,
             buf += s_dump_disp_frm_buf.u4_y_strd;
         }
     }
+    else if(ps_app_ctx->e_output_chroma_format == IV_YUV_444P)
+    {
+        UWORD32 i;
+        UWORD8 *buf_y = (UWORD8 *)s_dump_disp_frm_buf.pv_y_buf;
+        for(i = 0; i < s_dump_disp_frm_buf.u4_y_ht; i++)
+        {
+            fwrite(buf_y, 1, s_dump_disp_frm_buf.u4_y_wd, ps_op_file);
+            buf_y += s_dump_disp_frm_buf.u4_y_strd;
+        }
+        UWORD8 *buf_u = (UWORD8 *)s_dump_disp_frm_buf.pv_u_buf;
+        for(i = 0; i < s_dump_disp_frm_buf.u4_u_ht; i++)
+        {
+            fwrite(buf_u, 1, s_dump_disp_frm_buf.u4_u_wd, ps_op_file);
+            buf_u += s_dump_disp_frm_buf.u4_u_strd;
+        }
+        UWORD8 *buf_v = (UWORD8 *)s_dump_disp_frm_buf.pv_v_buf;
+        for(i = 0; i < s_dump_disp_frm_buf.u4_v_ht; i++)
+        {
+            fwrite(buf_v, 1, s_dump_disp_frm_buf.u4_v_wd, ps_op_file);
+            buf_v += s_dump_disp_frm_buf.u4_v_strd;
+        }
+    }
     else if(ps_app_ctx->e_output_chroma_format == IV_RGBA_8888)
     {
         UWORD8 *buf;
@@ -1256,6 +1278,8 @@ void parse_argument(vid_dec_ctx_t *ps_app_ctx, CHAR *argument, CHAR *value)
                 ps_app_ctx->e_output_chroma_format = IV_YUV_420P;
             else if((strcmp(value, "YUV_422ILE")) == 0)
                 ps_app_ctx->e_output_chroma_format = IV_YUV_422ILE;
+            else if((strcmp(value, "YUV_444P")) == 0)
+                ps_app_ctx->e_output_chroma_format = IV_YUV_444P;
             else if((strcmp(value, "RGB_565")) == 0)
                 ps_app_ctx->e_output_chroma_format = IV_RGB_565;
             else if((strcmp(value, "RGBA_8888")) == 0)
@@ -1264,8 +1288,7 @@ void parse_argument(vid_dec_ctx_t *ps_app_ctx, CHAR *argument, CHAR *value)
                 ps_app_ctx->e_output_chroma_format = IV_YUV_420SP_UV;
             else if((strcmp(value, "YUV_420SP_VU")) == 0)
                 ps_app_ctx->e_output_chroma_format = IV_YUV_420SP_VU;
-            else if((strcmp(value, "GRAY")) == 0 &&
-                    (ps_app_ctx->u4_enable_yuv_formats & (1 << CHROMA_FMT_IDC_MONOCHROME)))
+            else if((strcmp(value, "GRAY")) == 0)
                 ps_app_ctx->e_output_chroma_format = IV_GRAY;
             else
             {
@@ -2441,6 +2464,13 @@ int main(WORD32 argc, CHAR *argv[])
                     s_ctl_op.u4_min_out_buf_size[0] = ADAPTIVE_MAX_WD * ADAPTIVE_MAX_HT;
                     s_ctl_op.u4_min_out_buf_size[1] = ADAPTIVE_MAX_WD * ADAPTIVE_MAX_HT >> 1;
                     s_ctl_op.u4_min_out_buf_size[2] = 0;
+                    break;
+                }
+                case IV_YUV_444P:
+                {
+                    s_ctl_op.u4_min_out_buf_size[0] = ADAPTIVE_MAX_WD * ADAPTIVE_MAX_HT;
+                    s_ctl_op.u4_min_out_buf_size[1] = ADAPTIVE_MAX_WD * ADAPTIVE_MAX_HT;
+                    s_ctl_op.u4_min_out_buf_size[2] = ADAPTIVE_MAX_WD * ADAPTIVE_MAX_HT;
                     break;
                 }
                 case IV_GRAY:

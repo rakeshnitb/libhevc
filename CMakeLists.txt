@@ -45,12 +45,15 @@ libhevc_add_compile_options()
 libhevc_add_definitions()
 libhevc_set_link_libraries()
 
+# 444 support is being added for decoder. no need to build encoder.
+# so encoder builds are disabled.
+# note: this is not meant for final commit
 include("${HEVC_ROOT}/common/common.cmake")
 include("${HEVC_ROOT}/decoder/libhevcdec.cmake")
-include("${HEVC_ROOT}/encoder/libhevcenc.cmake")
+#include("${HEVC_ROOT}/encoder/libhevcenc.cmake")
 
 include("${HEVC_ROOT}/test/decoder/hevcdec.cmake")
-include("${HEVC_ROOT}/test/encoder/hevcenc.cmake")
+#include("${HEVC_ROOT}/test/encoder/hevcenc.cmake")
 
-include("${HEVC_ROOT}/fuzzer/hevc_dec_fuzzer.cmake")
-include("${HEVC_ROOT}/fuzzer/hevc_enc_fuzzer.cmake")
+#include("${HEVC_ROOT}/fuzzer/hevc_dec_fuzzer.cmake")
+#include("${HEVC_ROOT}/fuzzer/hevc_enc_fuzzer.cmake")

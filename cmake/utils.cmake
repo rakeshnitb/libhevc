@@ -9,6 +9,9 @@ function(libhevc_add_compile_options)
   else()
     add_compile_options(-msse4.2 -mno-avx)
   endif()
+  # this is hard coded here temporarily to enable 444 / frext profile support.
+  # this needs to be removed / relocated.
+  add_definitions(-DENABLE_MAIN_REXT_PROFILE=1)
 
   set(CMAKE_REQUIRED_FLAGS -fsanitize=fuzzer-no-link)
   check_cxx_compiler_flag(-fsanitize=fuzzer-no-link
@@ -44,8 +47,10 @@ function(libhevc_add_definitions)
     add_definitions(-DARMV7 -DDEFAULT_ARCH=D_ARCH_ARM_A9Q -DENABLE_NEON
                     -DDISABLE_NEONINTR)
   else()
+    # as 444 support is under-development, disable simd optimizations by default
+    # for easier debugging
     add_definitions(-DX86 -DX86_LINUX=1 -DDISABLE_AVX2
-                    -DDEFAULT_ARCH=D_ARCH_X86_SSE42)
+                    -DDEFAULT_ARCH=D_ARCH_X86_GENERIC)
   endif()
 endfunction()
 

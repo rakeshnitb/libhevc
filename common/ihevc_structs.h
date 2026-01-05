@@ -2482,6 +2482,36 @@ typedef struct
     vui_t s_vui_parameters;
 
     /**
+     *  sps_extension_present_flag
+     */
+    WORD8 i1_sps_extension_present_flag;
+
+    /**
+     *  sps_range_extension_present_flag
+     */
+    WORD8 i1_sps_range_extension_flag;
+
+    /**
+     *  sps_multilayer_extension_present_flag
+     */
+    WORD8 i1_sps_multilayer_extension_flag;
+
+    /**
+     *  sps_3d_extension_present_flag
+     */
+    WORD8 i1_sps_3d_extension_flag;
+
+    /**
+     *  sps_scc_extension_present_flag
+     */
+    WORD8 i1_sps_scc_extension_flag;
+
+    /**
+     *  sps_extension_reserved
+     */
+    WORD8 i1_sps_extension_4bits;
+
+    /**
      *  Log2(CTB Size) in luma units
      */
 
