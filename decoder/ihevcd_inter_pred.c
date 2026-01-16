@@ -163,6 +163,8 @@ void ihevcd_inter_pred_ctb(process_ctxt_t *ps_proc)
     WORD32 next_ctb_idx;
     WORD8(*coeff)[8];
     WORD32  chroma_yuv420sp_vu;
+    WORD32 h_samp_factor, v_samp_factor;
+    WORD32 bytes_per_chroma_pl = 2; // internally decoder stores chroma in interleaved format
 
     PROFILE_DISABLE_INTER_PRED();
     ps_codec = ps_proc->ps_codec;
@@ -210,6 +212,9 @@ void ihevcd_inter_pred_ctb(process_ctxt_t *ps_proc)
     luma_offset_l1 = 0;
     chroma_offset_l1_cb = 0;
     chroma_offset_l1_cr = 0;
+
+    h_samp_factor = (CHROMA_FMT_IDC_YUV420 == ps_sps->i1_chroma_format_idc) ? 2 : 1;
+    v_samp_factor = (CHROMA_FMT_IDC_YUV444 == ps_sps->i1_chroma_format_idc) ? 1 : 2;
 
     for(pu_indx = 0; pu_indx < i4_pu_cnt; pu_indx++, ps_pu++)
     {
@@ -319,15 +324,14 @@ void ihevcd_inter_pred_ctb(process_ctxt_t *ps_proc)
                 if(ps_pu->b2_pred_mode != PRED_L1)
                 {
                     mv = CLIP3(ps_pu->mv.s_l0_mv.i2_mvx, (-((MAX_CTB_SIZE + pu_x + 7) << 2)), ((ps_sps->i2_pic_width_in_luma_samples - pu_x + 7) << 2));
-                    ai2_xint[0] = (pu_x / 2 + (mv >> 3)) << 1;
-                    ai2_xfrac[0] = mv & 7;
+                    ai2_xint[0] = (pu_x *  bytes_per_chroma_pl / h_samp_factor) + (mv >> (2 + h_samp_factor - 1)) * bytes_per_chroma_pl;
+                    ai2_xfrac[0] = mv & ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV420) ? 7 : 3);
 
                     mv = CLIP3(ps_pu->mv.s_l0_mv.i2_mvy, (-((MAX_CTB_SIZE + pu_y + 7) << 2)), ((ps_sps->i2_pic_height_in_luma_samples - pu_y + 7) << 2));
-                    ai2_yint[0] = pu_y / 2 + (mv >> 3);
-                    ai2_yfrac[0] = mv & 7;
+                    ai2_yint[0] = ((pu_y / v_samp_factor) + (mv >> (2 + v_samp_factor - 1)));
+                    ai2_yfrac[0] = mv & ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? 3 : 7);
 
-                    ref_pic_l0 = ref_pic_chroma_l0 + ai2_yint[0] * ref_strd
-                                    + ai2_xint[0];
+                    ref_pic_l0 = ref_pic_chroma_l0 + ai2_yint[0] * (ref_strd * bytes_per_chroma_pl / h_samp_factor) + ai2_xint[0];
 
                     ai2_xfrac[0] &= ps_codec->i4_mv_frac_mask;
                     ai2_yfrac[0] &= ps_codec->i4_mv_frac_mask;
@@ -337,25 +341,40 @@ void ihevcd_inter_pred_ctb(process_ctxt_t *ps_proc)
                 if(ps_pu->b2_pred_mode != PRED_L0)
                 {
                     mv = CLIP3(ps_pu->mv.s_l1_mv.i2_mvx, (-((MAX_CTB_SIZE + pu_x + 7) << 2)), ((ps_sps->i2_pic_width_in_luma_samples - pu_x + 7) << 2));
-                    ai2_xint[1] = (pu_x / 2 + (mv >> 3)) << 1;
-                    ai2_xfrac[1] = mv & 7;
+                    ai2_xint[1] = (pu_x *  bytes_per_chroma_pl / h_samp_factor) + (mv >> (2 + h_samp_factor - 1)) * bytes_per_chroma_pl;
+                    ai2_xfrac[1] = mv & ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV420) ? 7 : 3);
 
                     mv = CLIP3(ps_pu->mv.s_l1_mv.i2_mvy, (-((MAX_CTB_SIZE + pu_y + 7) << 2)), ((ps_sps->i2_pic_height_in_luma_samples - pu_y + 7) << 2));
-                    ai2_yint[1] = pu_y / 2 + (mv >> 3);
-                    ai2_yfrac[1] = mv & 7;
+                    ai2_yint[1] = ((pu_y / v_samp_factor) + (mv >> (2 + v_samp_factor - 1)));
+                    ai2_yfrac[1] = mv & ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? 3 : 7);
 
-                    ref_pic_l1 = ref_pic_chroma_l1 + ai2_yint[1] * ref_strd
-                                    + ai2_xint[1];
+                    ref_pic_l1 = ref_pic_chroma_l1 + ai2_yint[1] * (ref_strd * bytes_per_chroma_pl / h_samp_factor) + ai2_xint[1];
+
                     ai2_xfrac[1] &= ps_codec->i4_mv_frac_mask;
                     ai2_yfrac[1] &= ps_codec->i4_mv_frac_mask;
 
                 }
 
-                pu1_dst = pu1_dst_chroma + pu_y * ref_strd / 2 + pu_x;
+                pu1_dst = pu1_dst_chroma + (pu_y / v_samp_factor) * (ref_strd * bytes_per_chroma_pl / h_samp_factor) + (pu_x * bytes_per_chroma_pl / h_samp_factor);
 
                 ntaps = NTAPS_CHROMA;
                 coeff = gai1_chroma_filter;
             }
+            if ((ai2_xfrac[0] % 2) != 0   || (ai2_xfrac[1] % 2) != 0 || (ai2_yfrac[0]  % 2) != 0 || (ai2_yfrac[1]  % 2) != 0)
+            	printf("encontered problem: got qpel \n");
+
+            if ((ai2_xfrac[0] / 2) != 0   || (ai2_xfrac[1] / 2) != 0 || (ai2_yfrac[0]  / 2) != 0 || (ai2_yfrac[1]  / 2) != 0)
+            	printf("encontered problem got hpel \n");
+
+            if ((ai2_yfrac[0]  / 2) != 0 || (ai2_yfrac[1]  / 2) != 0)
+            	printf("encontered problem got hpel vertical\n");
+
+            if ((ai2_xfrac[0]  / 2) != 0 || (ai2_xfrac[1]  / 2) != 0)
+            	printf("encontered problem got hpel horz\n");
+
+            if (((ai2_xfrac[0] / 2) != 0   || (ai2_xfrac[1] / 2) != 0) && ((ai2_yfrac[0]  / 2) != 0 || (ai2_yfrac[1]  / 2) != 0))
+            	printf("encontered problem got hpel diagonal \n");
+
 
             if(ps_pu->b2_pred_mode != PRED_L1)
             {
@@ -409,10 +428,15 @@ void ihevcd_inter_pred_ctb(process_ctxt_t *ps_proc)
                 func_dst_strd = (weighted_pred || bi_pred
                                 || (ai2_xfrac[0] && ai2_yfrac[0])) ?
                                 pu_wd : ref_strd;
+                if (clr_indx != 0)
+                {
+                	func_src_strd *= (bytes_per_chroma_pl / h_samp_factor);
+                	func_dst_strd *= (bytes_per_chroma_pl / h_samp_factor);
+                }
                 func_coeff = ai2_xfrac[0] ?
-                                coeff[ai2_xfrac[0]] : coeff[ai2_yfrac[0]];
-                func_wd = pu_wd >> clr_indx;
-                func_ht = pu_ht >> clr_indx;
+                                coeff[ai2_xfrac[0] << ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? clr_indx : 0)] : coeff[ai2_yfrac[0] << ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? clr_indx : 0)];
+                func_wd = pu_wd >> ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV420) ? clr_indx : 0);
+                func_ht = pu_ht >> ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? 0 : clr_indx);
                 func_ht += (ai2_xfrac[0] && ai2_yfrac[0]) ? ntaps - 1 : 0;
                 func_ptr1(func_src, func_dst, func_src_strd, func_dst_strd,
                           func_coeff, func_ht, func_wd);
@@ -428,9 +452,14 @@ void ihevcd_inter_pred_ctb(process_ctxt_t *ps_proc)
 
                 func_dst_strd = (weighted_pred || bi_pred) ?
                                 pu_wd : ref_strd;
-                func_coeff = coeff[ai2_yfrac[0]];
-                func_wd = pu_wd >> clr_indx;
-                func_ht = pu_ht >> clr_indx;
+                if (clr_indx != 0)
+                {
+                	func_src_strd *= (bytes_per_chroma_pl / h_samp_factor);
+                	func_dst_strd *= (bytes_per_chroma_pl / h_samp_factor);
+                }
+                func_coeff = coeff[ai2_yfrac[0] << ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? clr_indx : 0)];
+                func_wd = pu_wd >> ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV420) ? clr_indx : 0);
+                func_ht = pu_ht >> ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? 0 : clr_indx);
                 func_ptr2(func_src, func_dst, func_src_strd, func_dst_strd,
                           func_coeff, func_ht, func_wd);
             }
@@ -451,13 +480,20 @@ void ihevcd_inter_pred_ctb(process_ctxt_t *ps_proc)
                 func_dst_strd = (weighted_pred || bi_pred
                                 || (ai2_xfrac[1] && ai2_yfrac[1])) ?
                                 pu_wd : ref_strd;
+                if (clr_indx != 0)
+                {
+                	func_src_strd *= (bytes_per_chroma_pl / h_samp_factor);
+                	func_dst_strd *= (bytes_per_chroma_pl / h_samp_factor);
+                }
                 func_coeff = ai2_xfrac[1] ?
-                                coeff[ai2_xfrac[1]] : coeff[ai2_yfrac[1]];
-                func_wd = pu_wd >> clr_indx;
-                func_ht = pu_ht >> clr_indx;
+                                coeff[ai2_xfrac[1] << ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? clr_indx : 0)] : coeff[ai2_yfrac[1] << ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? clr_indx : 0)];
+                func_wd = pu_wd >> ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV420) ? clr_indx : 0);
+                func_ht = pu_ht >> ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? 0 : clr_indx);
+
                 func_ht += (ai2_xfrac[1] && ai2_yfrac[1]) ? ntaps - 1 : 0;
                 func_ptr3(func_src, func_dst, func_src_strd, func_dst_strd,
                           func_coeff, func_ht, func_wd);
+
 
             }
 
@@ -470,9 +506,14 @@ void ihevcd_inter_pred_ctb(process_ctxt_t *ps_proc)
                                 (void *)pi2_tmp2 : (void *)pu1_dst;
                 func_dst_strd = (weighted_pred || bi_pred) ?
                                 pu_wd : ref_strd;
-                func_coeff = coeff[ai2_yfrac[1]];
-                func_wd = pu_wd >> clr_indx;
-                func_ht = pu_ht >> clr_indx;
+                if (clr_indx != 0)
+                {
+                	func_src_strd *= (bytes_per_chroma_pl / h_samp_factor);
+                	func_dst_strd *= (bytes_per_chroma_pl / h_samp_factor);
+                }
+                func_coeff = coeff[ai2_yfrac[1] << ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? clr_indx : 0)];
+                func_wd = pu_wd >> ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV420) ? clr_indx : 0);
+                func_ht = pu_ht >> ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? 0 : clr_indx);
                 func_ptr4(func_src, func_dst, func_src_strd, func_dst_strd,
                           func_coeff, func_ht, func_wd);
 
@@ -644,20 +685,37 @@ void ihevcd_inter_pred_ctb(process_ctxt_t *ps_proc)
                 if((0 == clr_indx) && (ai2_xfrac[1] && ai2_yfrac[1]))
                     lvl_shift2 = (1 << 13);
 
+
+                func_src_strd = ref_strd;
+                func_wd = pu_wd;
+                func_ht= pu_ht;
+
+
+if(0){
                 if(clr_indx != 0)
                 {
                     pu_ht = (pu_ht >> 1);
                 }
+}else {
+                if(clr_indx != 0)
+                {
+                	func_wd = func_wd * (bytes_per_chroma_pl / h_samp_factor);
+                	func_ht = func_ht >> ((ps_sps->i1_chroma_format_idc == CHROMA_FMT_IDC_YUV444) ? 0 : clr_indx);
+                    func_src_strd *= (bytes_per_chroma_pl / h_samp_factor);
+
+                }
+}
+
                 ps_codec->s_func_selector.ihevc_weighted_pred_bi_default_fptr(pi2_tmp1,
                                                                               pi2_tmp2,
                                                                               pu1_dst,
-                                                                              pu_wd,
-                                                                              pu_wd,
-                                                                              ref_strd,
+																			  func_wd,
+																			  func_wd,
+																			  func_src_strd,
                                                                               lvl_shift1,
                                                                               lvl_shift2,
-                                                                              pu_ht,
-                                                                              pu_wd);
+																			  func_ht,
+																			  func_wd);
 
             }
         }
